@@ -1,0 +1,4 @@
+argcomplete==1.12.3
+ibapi==10.30.1
+pipx==0.16.4
+userpath==1.7.0
