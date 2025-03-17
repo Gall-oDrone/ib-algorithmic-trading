@@ -1,6 +1,8 @@
 from ibapi.client import EClient
 from ibapi.wrapper import EWrapper
 from ibapi.contract import Contract
+import threading
+import time
 
 class TradingApp(EWrapper, EClient):
     def __init__(self, *args, **kwargs):
@@ -15,14 +17,21 @@ class TradingApp(EWrapper, EClient):
     def contractDetails(self, reqId, contractDetails):
         print(f"reqID:{reqId}, contract:{contractDetails}")
 
+def websocket_conn():
+    app.run()
+
 app = TradingApp()
 app.connect("127.0.0.1", 4002, clientId=0)
+
+conn_thread = threading.Thread(target=websocket_conn, daemon=True)
+conn_thread.start()
+time.sleep(1)
 
 contract = Contract()
 contract.symbol = "NVDA"
 contract.secType = "STK"
 contract.currency = "USD"
-contract.exchange = "SMART"
+contract.exchange = "ISLAND"
 
 app.reqContractDetails(100, contract)
-app.run()
+time.sleep(5)
