@@ -19,11 +19,15 @@ class TradingApp(EWrapper, EClient):
 
 def websocket_conn():
     app.run()
-
+    event.wait()
+    if event.is_set():
+        app.close()
+        
+event = threading.Event()
 app = TradingApp()
 app.connect("127.0.0.1", 4002, clientId=0)
 
-conn_thread = threading.Thread(target=websocket_conn, daemon=True)
+conn_thread = threading.Thread(target=websocket_conn)
 conn_thread.start()
 time.sleep(1)
 
@@ -35,3 +39,4 @@ contract.exchange = "ISLAND"
 
 app.reqContractDetails(100, contract)
 time.sleep(5)
+event.set()
