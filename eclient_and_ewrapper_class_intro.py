@@ -40,24 +40,33 @@ conn_thread = threading.Thread(target=websocket_conn)
 conn_thread.start()
 time.sleep(1)
 
-contract = Contract()
-contract.symbol = "NVDA"
-contract.secType = "STK"
-contract.currency = "USD"
-contract.exchange = "NASDAQ"
+def handleContract(symbol, sec_type="STK",currency="USD", exchange="ISLAND"):
+    contract = Contract()
+    contract.symbol = symbol
+    contract.secType = sec_type
+    contract.currency = currency
+    contract.exchange = exchange
+    return contract
 
-#app.reqContractDetails(100, contract)
-app.reqHistoricalData(
-    reqId=1,
-    contract=contract,
-    endDateTime='',
-    durationStr="1 D",
-    barSizeSetting="5 mins",
-    whatToShow="BID_ASK",
-    useRTH=1,
-    formatDate=1,
-    keepUpToDate=False,
-    chartOptions=[]
-)
+def handleHistData(req_num,contract,duration,candle_size):
+    app.reqHistoricalData(
+        reqId=req_num,
+        contract=contract,
+        endDateTime='',
+        durationStr=duration,
+        barSizeSetting=candle_size,
+        whatToShow="ADJUSTED_LAST",
+        useRTH=1,
+        formatDate=1,
+        keepUpToDate=False,
+        chartOptions=[]
+    )
+
+idx_contract = handle_contract("NDX","IND","USD","NASDAQ")
+tickers = ["AMZN", "TSLA", "NVDA"]
+
+for ticker in tickers:
+    handleHistData(tickers.index(ticker),handle_contract(ticker),"1 D","30 mins")    
+
 time.sleep(5)
 event.set()
