@@ -13,7 +13,8 @@ import time
 class TradingApp(EWrapper, EClient):
     def __init__(self, *args, **kwargs):
         EClient.__init__(self, self)
-        
+        self.data = {}
+
     def error(self, reqId, errorCode, errorString, advancedOrderRejectJson):
         if advancedOrderRejectJson:
             print("Error {} {} {} {}".format(reqId,errorCode,errorString,advancedOrderRejectJson))
@@ -21,10 +22,15 @@ class TradingApp(EWrapper, EClient):
             print("Error {} {} {}".format(reqId,errorCode,errorString))
 
     def contractDetails(self, reqId, contractDetails):
-        print(f"reqID:{reqId}, contract:{contractDetails}")
+        print("reqID:{}, contract:{}".format(reqId,contractDetails))
 
     def historicalData(self, reqId, bar):
-        print("HistoricalData. ReqId:", reqId, "BarData.", bar)
+        if reqId not in self.data:
+            self.data[reqId] = [{"Date":bar.date,"Open":bar.open,"High":bar.high,"Low":bar.low,"Close":bar.close,"Volume":bar.volume}]
+        if reqId in self.data:
+            self.data[reqId].append({"Date":bar.date,"Open":bar.open,"High":bar.high,"Low":bar.low,"Close":bar.close,"Volume":bar.volume})
+        
+        print(f"reqId:{reqId}, date{bar.date}, open:{bar.open}, high:{bar.high}, low:{bar.low}, close:{bar.close}, volume:{bar.volume}")
 
 def websocket_conn():
     app.run()
@@ -62,11 +68,10 @@ def handleHistData(req_num,contract,duration,candle_size):
         chartOptions=[]
     )
 
-idx_contract = handle_contract("NDX","IND","USD","NASDAQ")
+idx_contract = handleContract("NDX","IND","USD","NASDAQ")
 tickers = ["AMZN", "TSLA", "NVDA"]
 
 for ticker in tickers:
-    handleHistData(tickers.index(ticker),handle_contract(ticker),"1 D","30 mins")    
-
-time.sleep(5)
+    handleHistData(tickers.index(ticker),handleContract(ticker),"1 D","30 mins")    
+    time.sleep(5)
 event.set()
