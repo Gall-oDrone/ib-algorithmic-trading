@@ -1,7 +1,7 @@
 from ibapi.client import EClient
 from ibapi.wrapper import EWrapper
 from ibapi.contract import Contract
-import pandas
+import pandas as pd
 
 def dataDataFrame(tradeAppObj,tickers):
     df_dict = {}

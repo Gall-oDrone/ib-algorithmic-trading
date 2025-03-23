@@ -1,0 +1,1 @@
+BAR_HEADER = ["Date", "Open", "High", "Low", "Close", "Volume"]
