@@ -1,26 +1,23 @@
-from ibapi.order import Oder
+from ibapi.order import Order
 from ibapi.client import EClient
 from ibapi.wrapper import EWrapper
 
-class OrderManagement(EWrapper, EClient):
+class OrderManagement():
     def __init__(self):
-        EClient.__init__(self, self)
         action = None
         orderType = None
         orderTotalQuantity = None
         orderLmtPrice = None
         orderDiscretionaryAmt = None
-        order = self.Order()
+        order = None
+        nextValidOrderId = None
 
-
-    def nextValidId(self, orderId):
-        super().nextValidId(orderId)
-        self.nextValidOrderId = orderId
-        print("NextValidId:", orderId)
-
-    def setOrderDetails(action,orderType,orderTotalQuantity,orderLmtPrice,orderDiscretionaryAmt):
-        self.action = action
-        self.orderType = orderType
-        self.orderTotalQuantity = orderTotalQuantity
-        self.orderLmtPrice = orderLmtPrice
-        self.orderDiscretionaryAmt = orderDiscretionaryAmt
+    def setOrder(self):
+        self.order = Order()
+        
+    def setOrderDetails(self, action, orderType, orderTotalQuantity, orderLmtPrice, orderDiscretionaryAmt):
+        self.order.action = action
+        self.order.orderType = orderType
+        self.order.totalQuantity = orderTotalQuantity
+        self.order.lmtPrice = orderLmtPrice
+        self.order.discretionaryAmt = orderDiscretionaryAmt
