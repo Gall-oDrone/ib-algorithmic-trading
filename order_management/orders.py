@@ -12,6 +12,8 @@ class OrderManagement():
         order = None
         nextValidOrderId = None
 
+    def setOrderId(self, oid):
+        self.nextValidOrderId = oid
     def setOrder(self):
         self.order = Order()
         

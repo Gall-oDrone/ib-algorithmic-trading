@@ -88,10 +88,11 @@ class TradingApp(EWrapper, EClient):
         self.nextValidOrderId = orderId
         print("NextValidId:", orderId)
 
-    def place_order(self):
+    def place_limit_order(self):
         order_mgmt = OrderManagement()
         order_mgmt.setOrder()
         orderId = self.nextValidOrderId
+        order_mgmt.setOrderId(orderId)
         order_mgmt.setOrderDetails("BUY","LMT",1,80,False)
         contract = handleContract("AAPL","STK","USD","SMART")
         if order_mgmt.order and orderId is not None:
@@ -103,6 +104,9 @@ class TradingApp(EWrapper, EClient):
             print("Order or next valid ID is not set!")
         nextValidOrderId = order_mgmt.place_order(self.nextValidId, contract)
 
+    def cancelOrder(self, orderId):
+        self.cancelOrder(orderId)
+        
     def timeout(self, startTime, maxLimit=60*5):
         return startTime + maxLimit
 
@@ -118,7 +122,7 @@ def main():
             app.fetch_index_data()
             app.store_data('idx')
         elif place_order_test:
-            app.place_order()
+            app.place_limit_order()
         time.sleep(30 - ((time.time()-start_time)%30))
 
 if __name__ == "__main__":
