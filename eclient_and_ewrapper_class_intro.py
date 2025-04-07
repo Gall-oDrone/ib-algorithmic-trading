@@ -9,6 +9,7 @@ from ibapi.wrapper import EWrapper
 from handlers.ibapi import handleContract
 from storage.dataframe import dataDataFrame
 from order_management.orders import OrderManagement
+from consts import contracts, orders
 
 import threading
 import time
@@ -25,6 +26,7 @@ class TradingApp(EWrapper, EClient):
         self.event = threading.Event()
         self.debug = False
         self.action = None
+        self.orders = []
     
     def error(self, reqId, errorCode, errorString, advancedOrderRejectJson=""):
         error_msg = f"Error {reqId} {errorCode} {errorString} {advancedOrderRejectJson}" if advancedOrderRejectJson else f"Error {reqId} {errorCode} {errorString}"
@@ -88,25 +90,28 @@ class TradingApp(EWrapper, EClient):
         self.nextValidOrderId = orderId
         print("NextValidId:", orderId)
 
-    def place_limit_order(self):
+    def place_limit_order(self, order, contract):
         order_mgmt = OrderManagement()
         order_mgmt.setOrder()
         orderId = self.nextValidOrderId
         order_mgmt.setOrderId(orderId)
-        order_mgmt.setOrderDetails("BUY","LMT",1,80,False)
-        contract = handleContract("AAPL","STK","USD","SMART")
+        order_mgmt.setOrderDetails(order.get("action"),order.get("orderType"),order.get("orderTotalQuantity"),order.get("orderLmtPrice"),order.get("orderDiscretionaryAmt"))
+        contract = handleContract(contract.get("symbol"),contract.get("sec"),contract.get("currency"),contract.get("exchange"))
         if order_mgmt.order and orderId is not None:
             self.placeOrder(orderId, contract, order_mgmt.order)
             print(f"Placing order ID {orderId} for {contract.symbol}\n")
             print(f"Order ID: {orderId} was placed sucessfully\n")
+            self.orders.append(orderId)
             self.nextValidId(orderId)
         else:
             print("Order or next valid ID is not set!")
         nextValidOrderId = order_mgmt.place_order(self.nextValidId, contract)
 
-    def cancelOrder(self, orderId):
-        self.cancelOrder(orderId)
-        
+    def cancelOrder(self, orderId, reason="Testing cancellation"):
+        order_mgmt = OrderManagement()
+        orderCancel = order_mgmt.createOrderCancel()
+        self.cancelOrder(orderId=orderId, orderCancel=orderCancel)
+
     def timeout(self, startTime, maxLimit=60*5):
         return startTime + maxLimit
 
@@ -114,15 +119,28 @@ def main():
     app = TradingApp()
     app.start_connection()
     start_time = time.time()
+    set_req_id = True
     fetch_data_test = False
     place_order_test = True
+    cancel_order_test = True
+    modify_order_test = True
     app.event.set()
     while time.time() <= app.timeout(start_time):
         if fetch_data_test:
             app.fetch_index_data()
             app.store_data('idx')
         elif place_order_test:
-            app.place_limit_order()
+            app.place_limit_order(orders.get("order_test_1"),contract.get("contract_test_1_apple"))
+        elif cancel_order_test:
+            app.cancelOrder(app.orders[-1])
+        elif modify_order_test:
+                if set_req_id:
+                    app.reqIds(-1)
+                    time.sleep(3)
+                orderId = app.nextValidOrderId
+                app.place_limit_order(orders.get("order_test_2"),contract.get("contract_test_1_apple"))
+                app.cancelOrder(orderId)
+
         time.sleep(30 - ((time.time()-start_time)%30))
 
 if __name__ == "__main__":

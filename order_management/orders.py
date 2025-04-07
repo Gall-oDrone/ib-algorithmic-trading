@@ -1,6 +1,7 @@
 from ibapi.order import Order
 from ibapi.client import EClient
 from ibapi.wrapper import EWrapper
+from ibapi.order_cancel import OrderCancel
 
 class OrderManagement():
     def __init__(self):
@@ -23,3 +24,6 @@ class OrderManagement():
         self.order.totalQuantity = orderTotalQuantity
         self.order.lmtPrice = orderLmtPrice
         self.order.discretionaryAmt = orderDiscretionaryAmt
+
+    def createOrderCancel(self):
+        return OrderCancel()
