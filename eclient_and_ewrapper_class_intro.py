@@ -6,10 +6,11 @@ IBAPI - Getting historical data intro
 
 from ibapi.client import EClient
 from ibapi.wrapper import EWrapper
-from handlers.ibapi import handleContract
+from tests.test_const_contracts import get_test_contract1, get_test_contract2, get_test_contract3, get_test_contract_facebook
+from tests.test_const_orders import get_buy_limit_order_test1, get_buy_limit_order_test2, get_buy_market_order_test1, get_buy_stop_order_test1, get_buy_trail_stop_order_test1
+from handlers.contract_handler import handleContract
 from storage.dataframe import dataDataFrame
 from order_management.orders import OrderManagement
-from consts import contracts, orders
 
 import threading
 import time
@@ -90,7 +91,7 @@ class TradingApp(EWrapper, EClient):
         self.nextValidOrderId = orderId
         print("NextValidId:", orderId)
 
-    def place_limit_order(self, order, contract):
+    def place_limitOrder(self, order, contract):
         order_mgmt = OrderManagement()
         order_mgmt.setOrder()
         orderId = self.nextValidOrderId
@@ -105,13 +106,60 @@ class TradingApp(EWrapper, EClient):
             self.nextValidId(orderId)
         else:
             print("Order or next valid ID is not set!")
-        nextValidOrderId = order_mgmt.place_order(self.nextValidId, contract)
+
+    def place_marketOrder(self, order, contract):
+        order_mgmt = OrderManagement()
+        order_mgmt.setOrder()
+        orderId = self.nextValidOrderId
+        order_mgmt.setOrderId(orderId)
+        order_mgmt.setOrderDetails(order.get("action"),order.get("orderType"),order.get("orderTotalQuantity"),"","",order.get("orderDiscretionaryAmt"))
+        contract_obj = handleContract(contract.get("symbol"),contract.get("sec"),contract.get("currency"),contract.get("exchange"))
+        if order_mgmt.order and contract_obj and orderId is not None:
+            self.placeOrder(orderId, contract_obj, order_mgmt.order)
+            print(f"Placing order ID {orderId} for {contract_obj.symbol}\n")
+            print(f"Order ID: {orderId} was placed sucessfully\n")
+            self.orders.append(orderId)
+            self.nextValidId(orderId)
+        else:
+            print("Order or next valid ID is not set!")
+    
+    def place_stopOrder(self, order, contract):
+        order_mgmt = OrderManagement()
+        order_mgmt.setOrder()
+        orderId = self.nextValidOrderId
+        order_mgmt.setOrderId(orderId)
+        order_mgmt.setOrderDetails(order.get("action"),order.get("orderType"),order.get("orderTotalQuantity"),None,order.get("orderAuxPrice"),order.get("orderDiscretionaryAmt"))
+        contract_obj = handleContract(contract.get("symbol"),contract.get("sec"),contract.get("currency"),contract.get("exchange"))
+        if order_mgmt.order and contract_obj and orderId is not None:
+            self.placeOrder(orderId, contract_obj, order_mgmt.order)
+            print(f"Placing order ID {orderId} for {contract_obj.symbol}\n")
+            print(f"Order ID: {orderId} was placed sucessfully\n")
+            self.orders.append(orderId)
+            self.nextValidId(orderId)
+        else:
+            print("Order or next valid ID is not set!")
 
     def cancelOrder(self, orderId, reason="Testing cancellation"):
         order_mgmt = OrderManagement()
         orderCancel = order_mgmt.createOrderCancel()
         self.cancelOrder(orderId=orderId, orderCancel=orderCancel)
 
+    def place_trailStopOrder(self, order, contract):
+        order_mgmt = OrderManagement()
+        order_mgmt.setOrder()
+        orderId = self.nextValidOrderId
+        order_mgmt.setOrderId(orderId)
+        order_mgmt.setOrderDetails(order.get("action"),order.get("orderType"),order.get("orderTotalQuantity"),None,order.get("orderTrailingStopPrice"),order.get("orderTrailingStop"),order.get("orderDiscretionaryAmt"))
+        contract_obj = handleContract(contract.get("symbol"),contract.get("sec"),contract.get("currency"),contract.get("exchange"))
+        if order_mgmt.order and contract_obj and orderId is not None:
+            self.placeOrder(orderId, contract_obj, order_mgmt.order)
+            print(f"Placing order ID {orderId} for {contract_obj.symbol}\n")
+            print(f"Order ID: {orderId} was placed sucessfully\n")
+            self.orders.append(orderId)
+            self.nextValidId(orderId)
+        else:
+            print("Order or next valid ID is not set!")
+        
     def timeout(self, startTime, maxLimit=60*5):
         return startTime + maxLimit
 
@@ -121,16 +169,29 @@ def main():
     start_time = time.time()
     set_req_id = True
     fetch_data_test = False
-    place_order_test = True
-    cancel_order_test = True
-    modify_order_test = True
+    place_limit_order_test = False
+    place_market_order_test = False
+    place_stop_order_test = True
+    cancel_order_test = False
+    modify_order_test = False
+    place_trail_stop_order_test = True
     app.event.set()
     while time.time() <= app.timeout(start_time):
         if fetch_data_test:
             app.fetch_index_data()
             app.store_data('idx')
-        elif place_order_test:
-            app.place_limit_order(orders.get("order_test_1"),contract.get("contract_test_1_apple"))
+        elif place_limit_order_test:
+            order = get_buy_limit_order_test1()
+            contract = get_test_contract1()
+            app.place_limitOrder(order,contract)
+        elif place_market_order_test:
+            order = get_buy_market_order_test1()
+            contract = get_test_contract2()
+            app.place_marketOrder(order,contract)
+        elif place_stop_order_test:
+            order = get_buy_stop_order_test1()
+            contract = get_test_contract3()
+            app.place_stopOrder(order,contract)
         elif cancel_order_test:
             app.cancelOrder(app.orders[-1])
         elif modify_order_test:
@@ -138,9 +199,14 @@ def main():
                     app.reqIds(-1)
                     time.sleep(3)
                 orderId = app.nextValidOrderId
-                app.place_limit_order(orders.get("order_test_2"),contract.get("contract_test_1_apple"))
+                order = get_buy_limit_order_test2()
+                contract = get_test_contract2()
+                app.place_limitrder(order,contract)
                 app.cancelOrder(orderId)
-
+        elif place_trail_stop_order_test:
+            order = get_buy_trail_stop_order_test1()
+            contract = get_test_contract_facebook()
+            app.place_trailStopOrder(order,contract)
         time.sleep(30 - ((time.time()-start_time)%30))
 
 if __name__ == "__main__":

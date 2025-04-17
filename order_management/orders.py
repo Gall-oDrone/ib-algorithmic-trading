@@ -9,7 +9,9 @@ class OrderManagement():
         orderType = None
         orderTotalQuantity = None
         orderLmtPrice = None
+        orderAuxPrice = None
         orderDiscretionaryAmt = None
+        orderTrailStopPrice = None
         order = None
         nextValidOrderId = None
 
@@ -18,12 +20,14 @@ class OrderManagement():
     def setOrder(self):
         self.order = Order()
         
-    def setOrderDetails(self, action, orderType, orderTotalQuantity, orderLmtPrice, orderDiscretionaryAmt):
+    def setOrderDetails(self, action, orderType, orderTotalQuantity, orderLmtPrice, orderAuxPrice, orderDiscretionaryAmt, orderTrailStopPrice):
         self.order.action = action
         self.order.orderType = orderType
         self.order.totalQuantity = orderTotalQuantity
         self.order.lmtPrice = orderLmtPrice
+        self.order.auxPrice = orderAuxPrice
         self.order.discretionaryAmt = orderDiscretionaryAmt
+        self.order.trailStopPrice = orderTrailStopPrice
 
     def createOrderCancel(self):
         return OrderCancel()
