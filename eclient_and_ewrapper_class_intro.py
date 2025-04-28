@@ -163,6 +163,26 @@ class TradingApp(EWrapper, EClient):
     def timeout(self, startTime, maxLimit=60*5):
         return startTime + maxLimit
 
+    def open_order(self, orderId, contract, order, orderState):
+        super().openOrder(orderId, contract, order, orderState)
+        dictionary = {
+            "PermId": order.permId,
+            "ClientId":order.clientId,
+            "OrderId":order.orderId,
+            "Account":order.account,
+            "Symbol":order.symbol,
+            "SecType":order.secType,
+            "Exchange":order.exchange,
+            "Action":order.action,
+            "OrderType":order.orderType,
+            "TotalQty":order.totalQty,
+            "CashQty":order.cashQty,
+            "LastPrice":order.lastPrice,
+            "AuxPrice":order.auxPrice,
+            "Status":order.status,
+        }
+        self.order_df = self.order_df.append(dictionary,ignore_index=True)
+
 def main():
     app = TradingApp()
     app.start_connection()
