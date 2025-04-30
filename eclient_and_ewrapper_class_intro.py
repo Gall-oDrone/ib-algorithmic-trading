@@ -28,6 +28,7 @@ class TradingApp(EWrapper, EClient):
         self.debug = False
         self.action = None
         self.orders = []
+        self.pos_df = []
     
     def error(self, reqId, errorCode, errorString, advancedOrderRejectJson=""):
         error_msg = f"Error {reqId} {errorCode} {errorString} {advancedOrderRejectJson}" if advancedOrderRejectJson else f"Error {reqId} {errorCode} {errorString}"
@@ -183,6 +184,11 @@ class TradingApp(EWrapper, EClient):
         }
         self.order_df = self.order_df.append(dictionary,ignore_index=True)
 
+    def receive_position_details(self, account, contract, position, avgCost):
+       super().position(account, contract, position, avgCost) 
+       pos_dict = {"Account":account, "Contract":contract, "Position":position, "Avg cost":avgCost}
+       self.pos_df = self.pos_df.append(pos_dict,ignore_index=True)
+
 def main():
     app = TradingApp()
     app.start_connection()
@@ -195,6 +201,7 @@ def main():
     cancel_order_test = False
     modify_order_test = False
     place_trail_stop_order_test = True
+    receive_position_details_test = True
     app.event.set()
     while time.time() <= app.timeout(start_time):
         if fetch_data_test:
@@ -227,6 +234,9 @@ def main():
             order = get_buy_trail_stop_order_test1()
             contract = get_test_contract_facebook()
             app.place_trailStopOrder(order,contract)
+        elif receive_position_details_test:
+            #receive_position_details()
+            pass
         time.sleep(30 - ((time.time()-start_time)%30))
 
 if __name__ == "__main__":
