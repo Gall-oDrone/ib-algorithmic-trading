@@ -11,6 +11,7 @@ from tests.test_const_orders import get_buy_limit_order_test1, get_buy_limit_ord
 from handlers.contract_handler import handleContract
 from storage.dataframe import dataDataFrame
 from order_management.orders import OrderManagement
+from account_and_portfolio.account import IBAccountSummary
 
 import threading
 import time
@@ -189,6 +190,16 @@ class TradingApp(EWrapper, EClient):
        pos_dict = {"Account":account, "Contract":contract, "Position":position, "Avg cost":avgCost}
        self.pos_df = self.pos_df.append(pos_dict,ignore_index=True)
 
+    def reqAccountSummary(self, reqId, account, tag):
+        account_summary = IBAccountSummary()
+        account_summary.reqAccountSummary(reqId, account, tag)
+        print(account_summary.getAccountSummary())
+
+    def reqPnL(self, reqId, account, tag):
+        pnl = IBAccountSummary()
+        pnl.reqPnL(reqId, account, tag)
+        print(pnl.getPnl())
+
 def main():
     app = TradingApp()
     app.start_connection()
@@ -202,6 +213,8 @@ def main():
     modify_order_test = False
     place_trail_stop_order_test = True
     receive_position_details_test = True
+    account_summary_test = True
+    profit_loss_test = True
     app.event.set()
     while time.time() <= app.timeout(start_time):
         if fetch_data_test:
@@ -237,6 +250,13 @@ def main():
         elif receive_position_details_test:
             #receive_position_details()
             pass
+        elif account_summary_test:
+            app.reqAccountSummary(-1, "All", "$LEDGER:ALL")
+            time.sleep(1)
+        elif profit_loss_test:
+            app.reqPnL(-1, "DU111519", "")
+            time.sleep(1)
+
         time.sleep(30 - ((time.time()-start_time)%30))
 
 if __name__ == "__main__":
