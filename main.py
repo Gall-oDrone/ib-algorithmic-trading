@@ -4,11 +4,19 @@ import argparse
 import time
 import sys
 
-from .core.trading_app import TradingApp
-from .config import get_config
-from .utils import setup_logger
-from .handlers.contract_handler import ContractHandler
-from .tests.fixtures import (
+import sys
+from pathlib import Path
+
+# Add current directory to path for imports
+current_dir = Path(__file__).parent
+if str(current_dir) not in sys.path:
+    sys.path.insert(0, str(current_dir))
+
+from core.trading_app import TradingApp
+from config import get_config
+from utils import setup_logger
+from handlers.contract_handler import ContractHandler
+from tests.fixtures import (
     get_test_contract_apple,
     get_test_contract_google,
     get_test_contract_palantir,
