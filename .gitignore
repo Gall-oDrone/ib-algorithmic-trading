@@ -150,8 +150,10 @@ logs/
 # Data folder - ignore exported files and charts
 courses/algorithmic_trading/data/historical_output/
 courses/algorithmic_trading/data/charts/
-courses/algorithmic_trading/data/*.csv
-courses/algorithmic_trading/data/*.png
-courses/algorithmic_trading/data/*.json
-courses/algorithmic_trading/data/*.parquet
-courses/algorithmic_trading/data/*.xlsx
+courses/algorithmic_trading/data/bollinger_bands/
+courses/algorithmic_trading/data/macd/
+courses/algorithmic_trading/data/**/*.csv
+courses/algorithmic_trading/data/**/*.png
+courses/algorithmic_trading/data/**/*.json
+courses/algorithmic_trading/data/**/*.parquet
+courses/algorithmic_trading/data/**/*.xlsx
