@@ -1,7 +1,13 @@
 """Historical data handling."""
 
 from pathlib import Path
-from typing import Dict, List, Literal, Optional
+from typing import Dict, List, Optional
+
+try:
+    from typing import Literal
+except ImportError:
+    # Python < 3.8 compatibility
+    from typing_extensions import Literal
 
 import pandas as pd
 from ibapi.common import BarData
