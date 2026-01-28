@@ -1,0 +1,1 @@
+"""ATR indicator tests."""

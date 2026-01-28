@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 
 # Add parent directory to path
-parent_dir = Path(__file__).parent.parent
+parent_dir = Path(__file__).parent.parent.parent
 if str(parent_dir) not in sys.path:
     sys.path.insert(0, str(parent_dir))
 
@@ -365,7 +365,7 @@ def test_rsi_on_ndx_index():
         
         # Create folder structure: data/rsi/ndx/YYYYMMDD/
         current_date = datetime.now().strftime("%Y%m%d")
-        base_dir = Path(__file__).parent.parent / "data" / "rsi" / "ndx" / current_date
+        base_dir = Path(__file__).parent.parent.parent / "data" / "rsi" / "ndx" / current_date
         base_dir.mkdir(parents=True, exist_ok=True)
         
         # Export to CSV
@@ -400,6 +400,216 @@ def test_rsi_on_ndx_index():
             oversold = (valid_rsi < 30).sum()
             print(f"Overbought conditions (RSI > 70): {overbought}")
             print(f"Oversold conditions (RSI < 30): {oversold}")
+        print("=" * 70)
+        
+    finally:
+        app.disconnect()
+
+
+@pytest.mark.parametrize("bar_size,bar_size_label,rsi_period,duration", [
+    ("30 secs", "30sec", 7, "1 D"),   # Shorter period for very short timeframes
+    ("1 min", "1min", 9, "1 D"),      # Slightly longer period for 1-min
+    ("5 mins", "5min", 14, "1 D"),    # Standard period for 5-min
+])
+def test_rsi_on_ndx_intraday(bar_size, bar_size_label, rsi_period, duration):
+    """
+    Integration test: Calculate RSI on NDX Index with intraday data for different candle sizes.
+    
+    This test demonstrates RSI behavior across different intraday timeframes:
+    - 30 seconds: Very short timeframe, more noise, requires shorter RSI period
+    - 1 minute: Short timeframe, good for scalping strategies
+    - 5 minutes: Medium intraday timeframe, standard RSI period works well
+    
+    RSI on short timeframes:
+    - More sensitive to price movements
+    - Can generate more trading signals (both valid and false)
+    - Useful for scalping and day trading strategies
+    - Requires careful interpretation due to increased noise
+    
+    This test:
+    1. Fetches NDX intraday data for the current trading day
+    2. Calculates RSI with timeframe-appropriate period
+    3. Exports results to data/rsi/ndx/YYYYMMDD/{timeframe}/ folder structure
+    
+    Prerequisites:
+    - IB Trader Workstation or IB Gateway must be running
+    - Paper trading account must be connected
+    - API connections must be enabled
+    - Market must be open (or recent trading day data available)
+    
+    If IB connection is not available, the test will be skipped.
+    """
+    try:
+        import time
+        import threading
+        from datetime import datetime
+        from ibapi.client import EClient
+        from ibapi.wrapper import EWrapper
+        from ibapi.contract import Contract
+        from ibapi.common import BarData
+        from handlers.historical_data_handler import HistoricalDataHandler
+        from handlers.contract_handler import ContractHandler
+        from config import get_config
+    except ImportError as e:
+        pytest.skip(f"Required modules not available: {e}")
+    
+    class NDXIntradayTestApp(EWrapper, EClient):
+        """Simple app for fetching NDX intraday data."""
+        
+        def __init__(self):
+            EClient.__init__(self, self)
+            self.data_handler = HistoricalDataHandler()
+            self.contract_handler = ContractHandler()
+            self.connected = False
+            self.data_received = False
+            
+        def nextValidId(self, orderId):
+            self.connected = True
+            
+        def error(self, reqId, errorCode, errorString, advancedOrderRejectJson=''):
+            if errorCode not in [2104, 2106, 2158]:
+                print(f"   Error {reqId} {errorCode}: {errorString}")
+        
+        def historicalData(self, reqId, bar: BarData):
+            self.data_handler.add_bar(reqId, bar)
+        
+        def historicalDataEnd(self, reqId, start, end):
+            self.data_received = True
+            print(f"   Historical data complete for NDX ({bar_size_label}): {start} to {end}")
+    
+    config = get_config()
+    app = NDXIntradayTestApp()
+    
+    # Try to connect
+    try:
+        app.connect(config.host, config.port, clientId=204)
+        api_thread = threading.Thread(target=app.run, daemon=True)
+        api_thread.start()
+        time.sleep(3)
+        
+        if not app.isConnected():
+            pytest.skip("Could not connect to IB TWS. Skipping integration test.")
+    except Exception as e:
+        pytest.skip(f"Could not connect to IB TWS: {e}")
+    
+    try:
+        # Request NDX intraday data
+        print(f"\n[1/4] Requesting NDX intraday data ({bar_size_label})...")
+        contract = app.contract_handler.create_contract(
+            "NDX", sec_type="IND", currency="USD", exchange="NASDAQ"
+        )
+        app.data_handler.register_request(0, f"NDX_{bar_size_label}")
+        
+        app.reqHistoricalData(
+            reqId=0,
+            contract=contract,
+            endDateTime="",  # Current time
+            durationStr=duration,  # Current day
+            barSizeSetting=bar_size,  # Variable bar size
+            whatToShow="TRADES",  # Use TRADES for intraday data
+            useRTH=1,  # Regular trading hours only
+            formatDate=1,
+            keepUpToDate=False,
+            chartOptions=[]
+        )
+        print(f"   Requested NDX data ({duration}, {bar_size} bars, regular trading hours)")
+        
+        # Wait for data
+        print("\n[2/4] Waiting for data...")
+        max_wait = 30
+        start_time = time.time()
+        while time.time() - start_time < max_wait:
+            if app.data_received:
+                break
+            time.sleep(1)
+        
+        if not app.data_received:
+            pytest.skip(f"No data received from IB TWS for {bar_size_label}. Skipping integration test.")
+        
+        # Get data as DataFrame
+        print("\n[3/4] Processing data and calculating RSI...")
+        data = app.data_handler.get_data(0)
+        if not data:
+            pytest.skip(f"No data available for {bar_size_label}. Skipping integration test.")
+        
+        df = pd.DataFrame(data)
+        if "Date" in df.columns:
+            # Handle IB API date format for intraday data
+            try:
+                df["Date"] = pd.to_datetime(df["Date"], format="%Y%m%d %H:%M:%S %Z")
+            except:
+                try:
+                    df["Date"] = pd.to_datetime(df["Date"], format="%Y%m%d %H:%M:%S")
+                except:
+                    df["Date"] = pd.to_datetime(df["Date"], errors='coerce')
+            df.set_index("Date", inplace=True)
+        
+        print(f"   Received {len(df)} {bar_size_label} bars")
+        
+        if len(df) < rsi_period + 1:
+            pytest.skip(f"Insufficient data for RSI calculation ({len(df)} bars, need {rsi_period + 1}). Skipping test.")
+        
+        # Calculate RSI with timeframe-appropriate period
+        close_prices = df["Close"]
+        indicator = RSIIndicator(period=rsi_period)
+        rsi_result = indicator.calculate(close_prices)
+        
+        # Combine original data with RSI values
+        result_df = df.copy()
+        result_df["RSI"] = rsi_result["rsi"]
+        
+        # Create folder structure: data/rsi/ndx/YYYYMMDD/{timeframe}/
+        current_date = datetime.now().strftime("%Y%m%d")
+        base_dir = Path(__file__).parent.parent.parent / "data" / "rsi" / "ndx" / current_date / bar_size_label
+        base_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Export to CSV
+        print("\n[4/4] Exporting results to CSV...")
+        output_file = base_dir / f"ndx_rsi_{bar_size_label}_{current_date}.csv"
+        
+        # Reset index to include Date as a column for better CSV readability
+        export_df = result_df.reset_index()
+        export_df.to_csv(output_file, index=False)
+        print(f"   Exported to: {output_file}")
+        print(f"   Rows: {len(export_df)}, Columns: {list(export_df.columns)}")
+        
+        # Verify file exists and has data
+        assert output_file.exists(), f"Export file does not exist: {output_file}"
+        assert len(export_df) > 0, "No data in result DataFrame"
+        assert "RSI" in export_df.columns, "RSI column not found"
+        
+        # Display summary
+        print("\n" + "=" * 70)
+        print(f"RSI INTRADAY TEST COMPLETED ({bar_size_label.upper()})")
+        print("=" * 70)
+        print(f"Output file: {output_file}")
+        print(f"Folder structure: data/rsi/ndx/{current_date}/{bar_size_label}/")
+        print(f"Bar size: {bar_size}")
+        print(f"RSI period: {rsi_period}")
+        print(f"Data points: {len(export_df)}")
+        print(f"Valid RSI values: {export_df['RSI'].notna().sum()}")
+        if export_df['RSI'].notna().any():
+            valid_rsi = export_df['RSI'].dropna()
+            print(f"RSI range: {valid_rsi.min():.2f} - {valid_rsi.max():.2f}")
+            print(f"RSI mean: {valid_rsi.mean():.2f}")
+            print(f"RSI std: {valid_rsi.std():.2f}")
+            # Count overbought (>70) and oversold (<30) conditions
+            overbought = (valid_rsi > 70).sum()
+            oversold = (valid_rsi < 30).sum()
+            print(f"Overbought conditions (RSI > 70): {overbought} ({overbought/len(valid_rsi)*100:.1f}%)")
+            print(f"Oversold conditions (RSI < 30): {oversold} ({oversold/len(valid_rsi)*100:.1f}%)")
+            
+            # Calculate signal frequency (how often RSI crosses key levels)
+            rsi_series = valid_rsi
+            crosses_70 = ((rsi_series > 70) & (rsi_series.shift(1) <= 70)).sum()
+            crosses_30 = ((rsi_series < 30) & (rsi_series.shift(1) >= 30)).sum()
+            print(f"RSI crosses above 70: {crosses_70}")
+            print(f"RSI crosses below 30: {crosses_30}")
+            
+            # Note about timeframe characteristics
+            if bar_size_label in ["30sec", "1min"]:
+                print(f"\nNote: RSI on {bar_size_label} timeframes is more sensitive and can generate")
+                print(f"      more signals. Use with caution and consider combining with other indicators.")
         print("=" * 70)
         
     finally:
