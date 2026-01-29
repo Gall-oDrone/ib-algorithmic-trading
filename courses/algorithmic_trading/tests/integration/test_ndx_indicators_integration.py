@@ -57,6 +57,7 @@ from config import get_config
 from indicators.bollinger_bands import BollingerBandsIndicator
 from indicators.atr import ATRIndicator
 from indicators.macd import MACDIndicator
+from indicators.stochastic import StochasticIndicator
 
 
 if IBAPI_AVAILABLE:
@@ -178,7 +179,13 @@ def calculate_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     result_df["MACD"] = macd_result["macd"]
     result_df["MACD_Signal"] = macd_result["signal"]
     result_df["MACD_Histogram"] = macd_result["histogram"]
-    
+
+    # Stochastic Oscillator
+    stoch_indicator = StochasticIndicator(k_period=14, d_period=3)
+    stoch_result = stoch_indicator.calculate(high, low, close)
+    result_df["Stoch_K"] = stoch_result["stoch_k"]
+    result_df["Stoch_D"] = stoch_result["stoch_d"]
+
     # Benchmark indicators (SMA and EMA for comparison)
     result_df["SMA_20"] = close.rolling(window=20, min_periods=20).mean()
     result_df["SMA_50"] = close.rolling(window=50, min_periods=50).mean()
@@ -542,6 +549,7 @@ def test_ndx_comprehensive_indicators_analysis():
             assert "BB_Middle" in df.columns, f"Bollinger Bands not found in {timeframe}"
             assert "ATR" in df.columns, f"ATR not found in {timeframe}"
             assert "MACD" in df.columns, f"MACD not found in {timeframe}"
+            assert "Stoch_K" in df.columns, f"Stochastic not found in {timeframe}"
         
         # Verify files exist
         for timeframe in all_results.keys():
@@ -741,6 +749,7 @@ def test_ndx_intraday_5min_indicators():
         assert "BB_Middle" in result_df.columns, "Bollinger Bands not found"
         assert "ATR" in result_df.columns, "ATR not found"
         assert "MACD" in result_df.columns, "MACD not found"
+        assert "Stoch_K" in result_df.columns, "Stochastic not found"
         
         # Verify files exist
         assert bb_csv.exists(), f"Bollinger Bands CSV file does not exist: {bb_csv}"
