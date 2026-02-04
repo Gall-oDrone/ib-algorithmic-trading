@@ -299,21 +299,26 @@ def test_max_drawdown_ndx_real_data():
         }
 
         current_date = datetime.now().strftime("%Y%m%d")
-        base_dir = (
-            Path(__file__).parent.parent.parent.parent.parent
-            / "data"
-            / "backtesting"
-            / "cagar"
-            / "ndx"
-            / current_date
-        )
-        base_dir.mkdir(parents=True, exist_ok=True)
-        out_path = base_dir / f"ndx_backtest_metrics_{current_date}.csv"
-        pd.DataFrame([merged]).to_csv(out_path, index=False)
-        print(f"   Exported to: {out_path}")
-        save_backtest_metrics_charts(merged, base_dir, label="daily", date_str=current_date)
+        data_root = Path(__file__).parent.parent.parent.parent.parent / "data" / "backtesting"
 
-        assert out_path.exists()
+        # All metrics (combined CSV + chart) -> all_metrics/
+        base_all = data_root / "all_metrics" / "ndx" / current_date
+        base_all.mkdir(parents=True, exist_ok=True)
+        out_path_all = base_all / f"ndx_backtest_metrics_{current_date}.csv"
+        pd.DataFrame([merged]).to_csv(out_path_all, index=False)
+        print(f"   Exported (all metrics) to: {out_path_all}")
+        save_backtest_metrics_charts(merged, base_all, label="daily", date_str=current_date)
+
+        # Individual max_drawdown result + chart -> max_drawdown/
+        base_md = data_root / "max_drawdown" / "ndx" / current_date
+        base_md.mkdir(parents=True, exist_ok=True)
+        out_path_md = base_md / f"ndx_max_drawdown_{current_date}.csv"
+        pd.DataFrame([scalar_metrics(max_dd_result)]).to_csv(out_path_md, index=False)
+        print(f"   Exported (max_drawdown) to: {out_path_md}")
+        save_backtest_metrics_charts(max_dd_result, base_md, label="daily", date_str=current_date)
+
+        assert out_path_all.exists()
+        assert out_path_md.exists()
         assert "max_drawdown_full" in merged
         assert "cagar_1y" in merged and "volatility_1y" in merged and "sharpe_full" in merged
         print(
@@ -477,26 +482,26 @@ def test_max_drawdown_ndx_intraday_real_data(bar_size, bar_size_label):
         }
 
         current_date = datetime.now().strftime("%Y%m%d")
-        base_dir = (
-            Path(__file__).parent.parent.parent.parent.parent
-            / "data"
-            / "backtesting"
-            / "cagar"
-            / "ndx"
-            / current_date
-            / "intraday"
-            / bar_size_label
-        )
-        base_dir.mkdir(parents=True, exist_ok=True)
-        out_path = (
-            base_dir
-            / f"ndx_backtest_metrics_intraday_{bar_size_label}_{current_date}.csv"
-        )
-        pd.DataFrame([merged]).to_csv(out_path, index=False)
-        print(f"   Exported to: {out_path}")
-        save_backtest_metrics_charts(merged, base_dir, label=bar_size_label, date_str=current_date)
+        data_root = Path(__file__).parent.parent.parent.parent.parent / "data" / "backtesting"
 
-        assert out_path.exists()
+        # All metrics (combined) -> all_metrics/ndx/<date>/intraday/<tf>/
+        base_all = data_root / "all_metrics" / "ndx" / current_date / "intraday" / bar_size_label
+        base_all.mkdir(parents=True, exist_ok=True)
+        out_path_all = base_all / f"ndx_backtest_metrics_intraday_{bar_size_label}_{current_date}.csv"
+        pd.DataFrame([merged]).to_csv(out_path_all, index=False)
+        print(f"   Exported (all metrics) to: {out_path_all}")
+        save_backtest_metrics_charts(merged, base_all, label=bar_size_label, date_str=current_date)
+
+        # Individual max_drawdown -> max_drawdown/ndx/<date>/intraday/<tf>/
+        base_md = data_root / "max_drawdown" / "ndx" / current_date / "intraday" / bar_size_label
+        base_md.mkdir(parents=True, exist_ok=True)
+        out_path_md = base_md / f"ndx_max_drawdown_intraday_{bar_size_label}_{current_date}.csv"
+        pd.DataFrame([scalar_metrics(max_dd_result)]).to_csv(out_path_md, index=False)
+        print(f"   Exported (max_drawdown) to: {out_path_md}")
+        save_backtest_metrics_charts(max_dd_result, base_md, label=bar_size_label, date_str=current_date)
+
+        assert out_path_all.exists()
+        assert out_path_md.exists()
         assert "max_drawdown_full" in merged
         assert "volatility_full" in merged and "sharpe_full" in merged
         print(

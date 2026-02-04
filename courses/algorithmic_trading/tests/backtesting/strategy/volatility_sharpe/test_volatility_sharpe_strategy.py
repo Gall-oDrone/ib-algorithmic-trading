@@ -301,21 +301,26 @@ def test_volatility_sharpe_ndx_real_data():
         merged = {**scalar_metrics(cagar_result), **scalar_metrics(vol_sharpe_result)}
 
         current_date = datetime.now().strftime("%Y%m%d")
-        base_dir = (
-            Path(__file__).parent.parent.parent.parent.parent
-            / "data"
-            / "backtesting"
-            / "cagar"
-            / "ndx"
-            / current_date
-        )
-        base_dir.mkdir(parents=True, exist_ok=True)
-        out_path = base_dir / f"ndx_backtest_metrics_{current_date}.csv"
-        pd.DataFrame([merged]).to_csv(out_path, index=False)
-        print(f"   Exported to: {out_path}")
-        save_backtest_metrics_charts(merged, base_dir, label="daily", date_str=current_date)
+        data_root = Path(__file__).parent.parent.parent.parent.parent / "data" / "backtesting"
 
-        assert out_path.exists()
+        # All metrics (combined CSV + chart) -> all_metrics/
+        base_all = data_root / "all_metrics" / "ndx" / current_date
+        base_all.mkdir(parents=True, exist_ok=True)
+        out_path_all = base_all / f"ndx_backtest_metrics_{current_date}.csv"
+        pd.DataFrame([merged]).to_csv(out_path_all, index=False)
+        print(f"   Exported (all metrics) to: {out_path_all}")
+        save_backtest_metrics_charts(merged, base_all, label="daily", date_str=current_date)
+
+        # Individual volatility/sharpe result + chart -> volatility_sharpe/
+        base_vs = data_root / "volatility_sharpe" / "ndx" / current_date
+        base_vs.mkdir(parents=True, exist_ok=True)
+        out_path_vs = base_vs / f"ndx_volatility_sharpe_{current_date}.csv"
+        pd.DataFrame([scalar_metrics(vol_sharpe_result)]).to_csv(out_path_vs, index=False)
+        print(f"   Exported (volatility_sharpe) to: {out_path_vs}")
+        save_backtest_metrics_charts(vol_sharpe_result, base_vs, label="daily", date_str=current_date)
+
+        assert out_path_all.exists()
+        assert out_path_vs.exists()
         assert "cagar_1y" in merged and "volatility_1y" in merged and "sharpe_full" in merged
         print(f"\nCAGAR 1Y: {merged.get('cagar_1y')}, Vol 1Y: {merged.get('volatility_1y')}, Sharpe full: {merged.get('sharpe_full')}")
     finally:
@@ -450,23 +455,26 @@ def test_volatility_sharpe_ndx_intraday_real_data(bar_size, bar_size_label):
         merged = {**scalar_metrics(cagar_result), **scalar_metrics(vol_sharpe_result)}
 
         current_date = datetime.now().strftime("%Y%m%d")
-        base_dir = (
-            Path(__file__).parent.parent.parent.parent.parent
-            / "data"
-            / "backtesting"
-            / "cagar"
-            / "ndx"
-            / current_date
-            / "intraday"
-            / bar_size_label
-        )
-        base_dir.mkdir(parents=True, exist_ok=True)
-        out_path = base_dir / f"ndx_backtest_metrics_intraday_{bar_size_label}_{current_date}.csv"
-        pd.DataFrame([merged]).to_csv(out_path, index=False)
-        print(f"   Exported to: {out_path}")
-        save_backtest_metrics_charts(merged, base_dir, label=bar_size_label, date_str=current_date)
+        data_root = Path(__file__).parent.parent.parent.parent.parent / "data" / "backtesting"
 
-        assert out_path.exists()
+        # All metrics (combined) -> all_metrics/ndx/<date>/intraday/<tf>/
+        base_all = data_root / "all_metrics" / "ndx" / current_date / "intraday" / bar_size_label
+        base_all.mkdir(parents=True, exist_ok=True)
+        out_path_all = base_all / f"ndx_backtest_metrics_intraday_{bar_size_label}_{current_date}.csv"
+        pd.DataFrame([merged]).to_csv(out_path_all, index=False)
+        print(f"   Exported (all metrics) to: {out_path_all}")
+        save_backtest_metrics_charts(merged, base_all, label=bar_size_label, date_str=current_date)
+
+        # Individual volatility/sharpe -> volatility_sharpe/ndx/<date>/intraday/<tf>/
+        base_vs = data_root / "volatility_sharpe" / "ndx" / current_date / "intraday" / bar_size_label
+        base_vs.mkdir(parents=True, exist_ok=True)
+        out_path_vs = base_vs / f"ndx_volatility_sharpe_intraday_{bar_size_label}_{current_date}.csv"
+        pd.DataFrame([scalar_metrics(vol_sharpe_result)]).to_csv(out_path_vs, index=False)
+        print(f"   Exported (volatility_sharpe) to: {out_path_vs}")
+        save_backtest_metrics_charts(vol_sharpe_result, base_vs, label=bar_size_label, date_str=current_date)
+
+        assert out_path_all.exists()
+        assert out_path_vs.exists()
         assert "volatility_full" in merged and "sharpe_full" in merged
         print(f"\nVolatility full ({bar_size_label}): {merged.get('volatility_full')}, Sharpe full: {merged.get('sharpe_full')}")
     finally:
