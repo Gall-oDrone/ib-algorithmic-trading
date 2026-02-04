@@ -19,6 +19,7 @@ from backtesting.strategy.volatility_sharpe import (
     VolatilitySharpeStrategy,
     calculate_volatility_sharpe,
 )
+from tests.backtesting.chart_utils import save_backtest_metrics_charts
 
 
 @pytest.fixture
@@ -312,6 +313,7 @@ def test_volatility_sharpe_ndx_real_data():
         out_path = base_dir / f"ndx_backtest_metrics_{current_date}.csv"
         pd.DataFrame([merged]).to_csv(out_path, index=False)
         print(f"   Exported to: {out_path}")
+        save_backtest_metrics_charts(merged, base_dir, label="daily", date_str=current_date)
 
         assert out_path.exists()
         assert "cagar_1y" in merged and "volatility_1y" in merged and "sharpe_full" in merged
@@ -462,6 +464,7 @@ def test_volatility_sharpe_ndx_intraday_real_data(bar_size, bar_size_label):
         out_path = base_dir / f"ndx_backtest_metrics_intraday_{bar_size_label}_{current_date}.csv"
         pd.DataFrame([merged]).to_csv(out_path, index=False)
         print(f"   Exported to: {out_path}")
+        save_backtest_metrics_charts(merged, base_dir, label=bar_size_label, date_str=current_date)
 
         assert out_path.exists()
         assert "volatility_full" in merged and "sharpe_full" in merged

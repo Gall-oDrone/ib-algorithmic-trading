@@ -24,6 +24,7 @@ if str(parent_dir) not in sys.path:
 
 from backtesting.strategy.cagar import CAGARStrategy, calculate_cagar
 from backtesting.strategy.base_strategy import BaseBacktestStrategy
+from tests.backtesting.chart_utils import save_backtest_metrics_charts
 
 
 @pytest.fixture
@@ -364,6 +365,7 @@ def test_cagar_on_ndx_real_data():
         metrics_df = pd.DataFrame([result])
         metrics_df.to_csv(out_path, index=False)
         print(f"   Exported to: {out_path}")
+        save_backtest_metrics_charts(result, base_dir, label="daily", date_str=current_date)
 
         assert out_path.exists(), f"Export file does not exist: {out_path}"
         assert "cagar_1y" in result
@@ -531,6 +533,7 @@ def test_cagar_ndx_intraday_timeperiods(bar_size, bar_size_label):
         metrics_df = pd.DataFrame([result])
         metrics_df.to_csv(out_path, index=False)
         print(f"   Exported to: {out_path}")
+        save_backtest_metrics_charts(result, base_dir, label=bar_size_label, date_str=current_date)
 
         assert out_path.exists(), f"Export file does not exist: {out_path}"
         assert "cagar_full" in result
