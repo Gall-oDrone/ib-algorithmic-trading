@@ -6,6 +6,7 @@ from .strategy.volatility_sharpe import (
     VolatilitySharpeStrategy,
     calculate_volatility_sharpe,
 )
+from .strategy.max_drawdown import MaxDrawdownStrategy, calculate_max_drawdown
 
 __all__ = [
     "BaseBacktestStrategy",
@@ -13,4 +14,6 @@ __all__ = [
     "calculate_cagar",
     "VolatilitySharpeStrategy",
     "calculate_volatility_sharpe",
+    "MaxDrawdownStrategy",
+    "calculate_max_drawdown",
 ]
