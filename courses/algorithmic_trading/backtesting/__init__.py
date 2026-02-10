@@ -12,6 +12,10 @@ from .metrics import (
     IntradayTradeMetrics,
     calculate_intraday_metrics,
 )
+from .runner import (
+    run_backtest,
+    trade_returns_from_backtest,
+)
 
 __all__ = [
     "BaseBacktestStrategy",
@@ -24,4 +28,6 @@ __all__ = [
     "BaseTradeMetric",
     "IntradayTradeMetrics",
     "calculate_intraday_metrics",
+    "run_backtest",
+    "trade_returns_from_backtest",
 ]
