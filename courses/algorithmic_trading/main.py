@@ -26,6 +26,7 @@ from tests.fixtures import (
     get_buy_stop_order_test1,
     get_buy_trail_stop_order_test1,
 )
+from run_ndx_intraday import run_ndx_intraday_loop
 
 
 def parse_args():
@@ -91,6 +92,29 @@ def parse_args():
         type=str,
         default=None,
         help="Request P&L for account",
+    )
+    parser.add_argument(
+        "--ndx-intraday",
+        action="store_true",
+        help="Run NDX intraday strategy: fetch bars, run MACD+Stoch+ATR strategy, place/cancel orders on signal",
+    )
+    parser.add_argument(
+        "--ndx-intraday-quantity",
+        type=float,
+        default=1.0,
+        help="Order quantity for NDX intraday (default: 1.0)",
+    )
+    parser.add_argument(
+        "--ndx-intraday-bar-size",
+        type=str,
+        default="5 mins",
+        help="Bar size for NDX intraday (default: 5 mins)",
+    )
+    parser.add_argument(
+        "--ndx-intraday-poll",
+        type=int,
+        default=300,
+        help="Seconds between NDX intraday iterations (default: 300)",
     )
     return parser.parse_args()
 
@@ -192,6 +216,18 @@ def main():
             time.sleep(2)
             pnl = app.get_pnl()
             logger.info(f"P&L:\n{pnl}")
+        
+        elif args.ndx_intraday:
+            logger.info("Running NDX intraday strategy (connect, fetch bars, signals, place/cancel orders)...")
+            run_ndx_intraday_loop(
+                app,
+                contract_handler,
+                quantity=args.ndx_intraday_quantity,
+                bar_size=args.ndx_intraday_bar_size,
+                duration="1 W",
+                poll_seconds=args.ndx_intraday_poll,
+                timeout_seconds=timeout,
+            )
         
         else:
             logger.info("No action specified. Use --help for available options.")

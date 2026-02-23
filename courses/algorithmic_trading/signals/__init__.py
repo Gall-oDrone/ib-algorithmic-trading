@@ -11,6 +11,10 @@ from .macd_stochastic_long import (
     MACDStochasticLongStrategy,
     generate_macd_stochastic_long_signal,
 )
+from .ndx_intraday import (
+    NDXIntradayStrategy,
+    generate_ndx_intraday_signal,
+)
 
 __all__ = [
     "BaseSignalStrategy",
@@ -20,4 +24,6 @@ __all__ = [
     "DEFAULT_CLOSE_COL",
     "MACDStochasticLongStrategy",
     "generate_macd_stochastic_long_signal",
+    "NDXIntradayStrategy",
+    "generate_ndx_intraday_signal",
 ]

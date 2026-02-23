@@ -400,6 +400,86 @@ class TradingApp(EWrapper, EClient):
         )
         return self.place_order(contract, self.order_manager.order)
     
+    def place_stop_order(
+        self,
+        contract: Contract,
+        action: str,
+        quantity: float,
+        stop_price: float,
+    ) -> int:
+        """
+        Place a stop order (STP). Trigger price is aux_price.
+        
+        Args:
+            contract: Contract to trade
+            action: BUY or SELL
+            quantity: Order quantity
+            stop_price: Stop trigger price (aux_price)
+            
+        Returns:
+            Order ID
+        """
+        self.order_manager.create_order()
+        self.order_manager.set_order_details(
+            action=action,
+            order_type="STP",
+            total_quantity=quantity,
+            aux_price=stop_price,
+        )
+        return self.place_order(contract, self.order_manager.order)
+    
+    def place_trailing_stop_order(
+        self,
+        contract: Contract,
+        action: str,
+        quantity: float,
+        trail_stop_price: float,
+        aux_price: Optional[float] = None,
+    ) -> int:
+        """
+        Place a trailing stop order (TRAIL).
+        
+        Args:
+            contract: Contract to trade
+            action: BUY or SELL
+            quantity: Order quantity
+            trail_stop_price: Trailing stop price
+            aux_price: Optional auxiliary price
+            
+        Returns:
+            Order ID
+        """
+        self.order_manager.create_order()
+        self.order_manager.set_order_details(
+            action=action,
+            order_type="TRAIL",
+            total_quantity=quantity,
+            aux_price=aux_price,
+            trail_stop_price=trail_stop_price,
+        )
+        return self.place_order(contract, self.order_manager.order)
+    
+    def modify_order(
+        self,
+        order_id: int,
+        contract: Contract,
+        order: Order,
+    ) -> None:
+        """
+        Modify an existing order by re-placing with the same order ID.
+        
+        Args:
+            order_id: Existing order ID to modify
+            contract: Contract
+            order: Order with updated details
+        """
+        if not self.connection_manager.is_connected:
+            raise ConnectionError("Not connected to IB API")
+        if not self.contract_handler.validate_contract(contract):
+            raise OrderError(f"Invalid contract: {contract.symbol}")
+        self.placeOrder(order_id, contract, order)
+        logger.info(f"Modified order {order_id}: {contract.symbol} {order.action} {order.totalQuantity} {order.orderType}")
+    
     def cancel_order(self, order_id: int) -> None:
         """
         Cancel an order.
