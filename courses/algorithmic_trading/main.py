@@ -27,6 +27,7 @@ from tests.fixtures import (
     get_buy_trail_stop_order_test1,
 )
 from run_ndx_intraday import run_ndx_intraday_loop
+from backtesting.intraday_backtest import run_intraday_loop_tws
 
 
 def parse_args():
@@ -116,6 +117,46 @@ def parse_args():
         default=300,
         help="Seconds between NDX intraday iterations (default: 300)",
     )
+    parser.add_argument(
+        "--intraday-backtest",
+        action="store_true",
+        help="Run intraday backtest strategy with TWS (Paper/Test): Buy/Sell signals, place/cancel orders. Use with --intraday-symbol.",
+    )
+    parser.add_argument(
+        "--intraday-symbol",
+        type=str,
+        default="NDX",
+        choices=["NDX", "AAPL", "AMZN", "META", "NVDA", "TSLA", "PLTR"],
+        help="Symbol for intraday backtest with TWS (default: NDX)",
+    )
+    parser.add_argument(
+        "--intraday-quantity",
+        type=float,
+        default=1.0,
+        help="Order quantity for intraday backtest (default: 1.0)",
+    )
+    parser.add_argument(
+        "--intraday-bar-size",
+        type=str,
+        default="5 mins",
+        help="Bar size for intraday backtest (default: 5 mins)",
+    )
+    parser.add_argument(
+        "--intraday-poll",
+        type=int,
+        default=300,
+        help="Seconds between intraday backtest iterations (default: 300)",
+    )
+    parser.add_argument(
+        "--cancel-all-orders",
+        action="store_true",
+        help="Cancel all open orders (requests open orders from TWS, then cancels each).",
+    )
+    parser.add_argument(
+        "--close-all-positions",
+        action="store_true",
+        help="Close all open positions (requests positions from TWS, then places closing market orders).",
+    )
     return parser.parse_args()
 
 
@@ -169,38 +210,38 @@ def main():
         
         elif args.place_limit_order:
             logger.info("Placing limit order...")
-            order = get_buy_limit_order_test1()
+            order_dict = get_buy_limit_order_test1()
             contract_dict = get_test_contract_apple()
             contract = contract_handler.create_contract_from_dict(contract_dict)
-            app.order_manager.set_order_details_from_dict(order)
             app.order_manager.create_order()
+            app.order_manager.set_order_details_from_dict(order_dict)
             app.place_order(contract, app.order_manager.order)
         
         elif args.place_market_order:
             logger.info("Placing market order...")
-            order = get_buy_market_order_test1()
+            order_dict = get_buy_market_order_test1()
             contract_dict = get_test_contract_google()
             contract = contract_handler.create_contract_from_dict(contract_dict)
-            app.order_manager.set_order_details_from_dict(order)
             app.order_manager.create_order()
+            app.order_manager.set_order_details_from_dict(order_dict)
             app.place_order(contract, app.order_manager.order)
         
         elif args.place_stop_order:
             logger.info("Placing stop order...")
-            order = get_buy_stop_order_test1()
+            order_dict = get_buy_stop_order_test1()
             contract_dict = get_test_contract_palantir()
             contract = contract_handler.create_contract_from_dict(contract_dict)
-            app.order_manager.set_order_details_from_dict(order)
             app.order_manager.create_order()
+            app.order_manager.set_order_details_from_dict(order_dict)
             app.place_order(contract, app.order_manager.order)
         
         elif args.place_trail_stop_order:
             logger.info("Placing trailing stop order...")
-            order = get_buy_trail_stop_order_test1()
+            order_dict = get_buy_trail_stop_order_test1()
             contract_dict = get_test_contract_facebook()
             contract = contract_handler.create_contract_from_dict(contract_dict)
-            app.order_manager.set_order_details_from_dict(order)
             app.order_manager.create_order()
+            app.order_manager.set_order_details_from_dict(order_dict)
             app.place_order(contract, app.order_manager.order)
         
         elif args.account_summary:
@@ -228,7 +269,34 @@ def main():
                 poll_seconds=args.ndx_intraday_poll,
                 timeout_seconds=timeout,
             )
-        
+        elif args.intraday_backtest:
+            # Paper/Test: intraday backtest strategy with Buy/Sell orders to TWS
+            sec_type = "IND" if args.intraday_symbol == "NDX" else "STK"
+            exchange = "NASDAQ" if args.intraday_symbol == "NDX" else "SMART"
+            logger.info(
+                "Running intraday backtest strategy (Paper/Test) for %s: fetch bars, signals, place/cancel orders...",
+                args.intraday_symbol,
+            )
+            run_intraday_loop_tws(
+                app,
+                contract_handler,
+                symbol=args.intraday_symbol,
+                sec_type=sec_type,
+                exchange=exchange,
+                quantity=args.intraday_quantity,
+                bar_size=args.intraday_bar_size,
+                duration="1 W",
+                poll_seconds=args.intraday_poll,
+                timeout_seconds=timeout,
+            )
+        elif args.cancel_all_orders:
+            logger.info("Cancelling all open orders...")
+            cancelled = app.cancel_all_open_orders(timeout_sec=10.0)
+            logger.info("Cancel-all sent for %d order(s): %s", len(cancelled), cancelled)
+        elif args.close_all_positions:
+            logger.info("Closing all positions...")
+            closed = app.close_all_positions(timeout_sec=10.0)
+            logger.info("Close-all sent for %d position(s): %s", len(closed), closed)
         else:
             logger.info("No action specified. Use --help for available options.")
             logger.info("Example: python -m algorithmic_trading.main --account-summary")

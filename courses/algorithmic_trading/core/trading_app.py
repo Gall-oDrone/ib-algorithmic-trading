@@ -1,5 +1,6 @@
 """Main TradingApp class that integrates all components."""
 
+import threading
 import time
 from typing import Dict, List, Optional, Any
 
@@ -47,6 +48,8 @@ class TradingApp(EWrapper, EClient):
         self._next_valid_order_id: Optional[int] = None
         self._active_orders: Dict[int, Order] = {}
         self._debug = self.config.debug
+        self._open_orders_event = threading.Event()
+        self._positions_event = threading.Event()
         
     @property
     def debug(self) -> bool:
@@ -205,7 +208,19 @@ class TradingApp(EWrapper, EClient):
         super().position(account, contract, position, avg_cost)
         self.portfolio_manager.add_position(account, contract, position, avg_cost)
         logger.debug(f"Position update: {account} {contract.symbol} = {position}")
-    
+
+    def openOrderEnd(self) -> None:
+        """Callback when all open orders have been delivered."""
+        super().openOrderEnd()
+        self._open_orders_event.set()
+        logger.debug("Open orders list complete")
+
+    def positionEnd(self) -> None:
+        """Callback when all positions have been delivered."""
+        super().positionEnd()
+        self._positions_event.set()
+        logger.debug("Positions list complete")
+
     # Historical data methods
     
     def request_historical_data(
@@ -483,17 +498,91 @@ class TradingApp(EWrapper, EClient):
     def cancel_order(self, order_id: int) -> None:
         """
         Cancel an order.
-        
+
         Args:
             order_id: Order ID to cancel
         """
         if not self.connection_manager.is_connected:
             raise ConnectionError("Not connected to IB API")
-        
+
         order_cancel = self.order_manager.create_order_cancel()
         self.cancelOrder(order_id, orderCancel=order_cancel)
         logger.info(f"Cancelled order {order_id}")
-    
+
+    def cancel_all_open_orders(self, timeout_sec: float = 10.0) -> List[int]:
+        """
+        Request open orders from TWS, then cancel each one.
+
+        Args:
+            timeout_sec: Max seconds to wait for open orders list.
+
+        Returns:
+            List of order IDs that were sent cancel requests.
+
+        Raises:
+            ConnectionError: If not connected.
+        """
+        if not self.connection_manager.is_connected:
+            raise ConnectionError("Not connected to IB API")
+
+        self._open_orders_event.clear()
+        self.reqOpenOrders()
+        if not self._open_orders_event.wait(timeout=timeout_sec):
+            logger.warning("Timeout waiting for open orders list")
+        order_ids = list(self._active_orders.keys())
+        for oid in order_ids:
+            try:
+                self.cancel_order(oid)
+            except Exception as e:
+                logger.warning("Failed to cancel order %s: %s", oid, e)
+        logger.info("Cancel-all sent for %d open orders", len(order_ids))
+        return order_ids
+
+    def close_all_positions(self, timeout_sec: float = 10.0) -> List[Dict[str, Any]]:
+        """
+        Request positions from TWS, then place market orders to flatten each.
+
+        Args:
+            timeout_sec: Max seconds to wait for positions list.
+
+        Returns:
+            List of dicts with symbol, position, action (BUY/SELL), quantity for each closed position.
+
+        Raises:
+            ConnectionError: If not connected.
+        """
+        if not self.connection_manager.is_connected:
+            raise ConnectionError("Not connected to IB API")
+
+        self.portfolio_manager.clear_positions()
+        self._positions_event.clear()
+        self.reqPositions()
+        if not self._positions_event.wait(timeout=timeout_sec):
+            logger.warning("Timeout waiting for positions list")
+        positions_df = self.portfolio_manager.get_positions()
+        closed = []
+        for _, row in positions_df.iterrows():
+            pos = float(row["Position"])
+            if pos == 0:
+                continue
+            symbol = str(row["Symbol"])
+            sec_type = str(row["SecType"])
+            currency = str(row["Currency"])
+            exchange = "NASDAQ" if sec_type == "IND" else "SMART"
+            contract = self.contract_handler.create_contract(
+                symbol=symbol, sec_type=sec_type, currency=currency, exchange=exchange
+            )
+            action = "SELL" if pos > 0 else "BUY"
+            qty = abs(pos)
+            try:
+                self.place_market_order(contract, action, qty)
+                closed.append({"symbol": symbol, "position": pos, "action": action, "quantity": qty})
+                time.sleep(0.5)  # Allow TWS to send next valid order ID before next order
+            except Exception as e:
+                logger.warning("Failed to close position %s: %s", symbol, e)
+        logger.info("Close-all sent for %d positions", len(closed))
+        return closed
+
     # Account methods
     
     def request_account_summary(

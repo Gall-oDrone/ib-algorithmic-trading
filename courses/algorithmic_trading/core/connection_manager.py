@@ -90,7 +90,7 @@ class ConnectionManager:
         if self.is_connected:
             logger.info("Disconnecting from IB API")
             self.event.set()
-            self.client.disconnect()
+            EClient.disconnect(self.client)
             self._connected = False
             logger.info("Disconnected from IB API")
     
@@ -102,4 +102,4 @@ class ConnectionManager:
             logger.error(f"Websocket error: {e}")
         finally:
             if self.event.is_set():
-                self.client.disconnect()
+                EClient.disconnect(self.client)
