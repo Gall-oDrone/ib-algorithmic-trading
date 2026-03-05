@@ -95,7 +95,7 @@ class TradingApp(EWrapper, EClient):
         Handle errors from IB API.
         
         Args:
-            req_id: Request ID
+            req_id: Request ID (often order ID when order-related)
             error_code: Error code
             error_string: Error message
             advanced_order_reject_json: Additional error info
@@ -106,6 +106,16 @@ class TradingApp(EWrapper, EClient):
             else f"Error {req_id} {error_code}: {error_string} {advanced_order_reject_json}"
         )
         logger.error(error_msg)
+
+        # Log a clear message when cancel failed because order was already filled
+        if error_code == 104 or (
+            "filled" in error_string.lower()
+            and ("cancel" in error_string.lower() or "modify" in error_string.lower())
+        ):
+            logger.warning(
+                "Order %s could not be cancelled because it was already filled.",
+                req_id,
+            )
     
     def nextValidId(self, order_id: int) -> None:
         """
