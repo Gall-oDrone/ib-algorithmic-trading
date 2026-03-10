@@ -18,7 +18,11 @@ if str(project_root) not in sys.path:
 
 from streaming_market_data.models import QuoteSnapshot, TickRecord
 from streaming_market_data.interfaces import IMarketDataRepository
-from streaming_market_data.streaming.client import MarketDataCallbackHandler
+
+try:
+    from streaming_market_data.streaming.client import MarketDataCallbackHandler
+except ImportError:
+    MarketDataCallbackHandler = None
 
 
 class InMemoryMarketDataRepository(IMarketDataRepository):
@@ -44,6 +48,8 @@ def in_memory_repo():
 @pytest.fixture
 def callback_handler(in_memory_repo):
     """Callback handler backed by in-memory repository."""
+    if MarketDataCallbackHandler is None:
+        pytest.importorskip("ibapi")
     return MarketDataCallbackHandler(in_memory_repo)
 
 
