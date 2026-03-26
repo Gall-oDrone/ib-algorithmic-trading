@@ -1,8 +1,10 @@
 """Integration tests for PostgresMarketDataRepository (requires local PostgreSQL)."""
 
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pandas as pd
 import pytest
 
 try:
@@ -31,6 +33,28 @@ def _truncate_tables(conn) -> None:
     with conn.cursor() as cur:
         cur.execute("TRUNCATE TABLE market_data_ticks, market_data_snapshots RESTART IDENTITY")
     conn.commit()
+
+
+def _export_query_rows(rows, columns, output_file: Path, export_format: str) -> None:
+    """Export SQL query rows to a file in the requested format."""
+    df = pd.DataFrame(rows, columns=columns)
+
+    if export_format == "csv":
+        df.to_csv(output_file, index=False)
+    elif export_format == "json":
+        df.to_json(output_file, orient="records", indent=2, date_format="iso")
+    elif export_format == "parquet":
+        try:
+            df.to_parquet(output_file, index=False)
+        except ImportError as e:
+            pytest.skip(f"Parquet export requires optional dependency (pyarrow/fastparquet): {e}")
+    elif export_format == "excel":
+        try:
+            df.to_excel(output_file, index=False)
+        except ImportError as e:
+            pytest.skip(f"Excel export requires optional dependency (openpyxl/xlsxwriter): {e}")
+    else:
+        raise ValueError(f"Unsupported export format: {export_format}")
 
 
 @pytest.fixture
@@ -163,3 +187,81 @@ def test_insert_snapshot_bid_ask_only(postgres_repo, postgres_conn):
     assert float(row[1]) == 300.0
     assert float(row[2]) == 300.1
     assert row[3] is None
+
+
+@pytest.mark.integration
+def test_query_streaming_market_data_and_export(postgres_repo, postgres_conn):
+    """
+    Query stored streaming market data and export it to file.
+
+    Set STREAMING_MARKET_DATA_EXPORT_FORMAT to one of:
+    csv (default), json, parquet, excel
+    """
+    t = datetime.now(timezone.utc)
+    req_id = 9001
+    ticks = [
+        TickRecord(
+            req_id=req_id,
+            symbol="AAPL",
+            sec_type="STK",
+            exchange="SMART",
+            tick_type="Last",
+            time_utc=t,
+            price=189.12,
+            size=100,
+        ),
+        TickRecord(
+            req_id=req_id,
+            symbol="AAPL",
+            sec_type="STK",
+            exchange="SMART",
+            tick_type="BidAsk",
+            time_utc=t,
+            bid_price=189.10,
+            ask_price=189.14,
+            bid_size=300,
+            ask_size=250,
+        ),
+    ]
+    postgres_repo.insert_ticks(ticks)
+
+    with postgres_conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                req_id, symbol, sec_type, exchange, tick_type, time_utc,
+                price, size, bid_price, ask_price, bid_size, ask_size, created_at_utc
+            FROM market_data_ticks
+            WHERE req_id = %s
+            ORDER BY time_utc ASC, id ASC
+            """,
+            (req_id,),
+        )
+        rows = cur.fetchall()
+        columns = [desc[0] for desc in cur.description]
+
+    assert rows, "No streaming market data rows found to export."
+
+    export_format = os.getenv("STREAMING_MARKET_DATA_EXPORT_FORMAT", "csv").strip().lower()
+    if export_format not in {"csv", "json", "parquet", "excel"}:
+        pytest.fail(
+            "Invalid STREAMING_MARKET_DATA_EXPORT_FORMAT. "
+            "Use one of: csv, json, parquet, excel."
+        )
+
+    project_root = Path(__file__).resolve().parent.parent.parent
+    output_dir = (
+        project_root
+        / "courses"
+        / "algorithmic_trading"
+        / "data"
+        / "streaming_market_data_exports"
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
+    extension = "xlsx" if export_format == "excel" else export_format
+    output_file = output_dir / f"market_data_ticks_req_{req_id}.{extension}"
+
+    _export_query_rows(rows, columns, output_file, export_format)
+
+    assert output_file.exists(), f"Expected export file was not created: {output_file}"
+    print(f"Exported {len(rows)} rows from market_data_ticks to: {output_file}")
