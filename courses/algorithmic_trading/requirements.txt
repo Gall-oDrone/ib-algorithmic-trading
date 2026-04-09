@@ -12,3 +12,4 @@ userpath==1.7.0
 pytest==7.4.0
 pytest-cov==4.1.0
 matplotlib==3.7.2
+PyYAML==6.0.2
