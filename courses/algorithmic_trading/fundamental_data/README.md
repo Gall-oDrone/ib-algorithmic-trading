@@ -20,6 +20,8 @@ Multi-symbol in-flight example:
 ```bash
 python3 courses/algorithmic_trading/scripts/request_fundamental_data_reports.py \
   --symbols "NVDA,TSLA,GOOG,AAPL" \
+  --max-concurrency 2 \
+  --request-delay-ms 250 \
   --report-type ReportSnapshot
 ```
 
@@ -28,6 +30,7 @@ python3 courses/algorithmic_trading/scripts/request_fundamental_data_reports.py 
 - `0`: Success. At least one payload received.
 - `2`: Could not connect to TWS/IB Gateway.
 - `4`: No payload received within timeout.
+- `6`: Invalid pacing configuration (`--max-concurrency` must be > 0).
 
 ### Output Files
 
@@ -42,3 +45,8 @@ For each request, it stores:
 - `req_<req_id>_<symbol>_<report_type>.yaml`
 
 Disable file output with `--skip-file-output`.
+
+For larger symbol batches, tune:
+
+- `--max-concurrency` to cap in-flight requests per submission burst.
+- `--request-delay-ms` to pause between bursts and avoid pacing issues.

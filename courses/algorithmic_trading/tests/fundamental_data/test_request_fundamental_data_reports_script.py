@@ -3,8 +3,11 @@
 import argparse
 from pathlib import Path
 
+import pytest
+
 from scripts.request_fundamental_data_reports import (
     build_output_base,
+    chunk_requests,
     resolve_symbols,
     save_payload_files,
 )
@@ -40,3 +43,14 @@ def test_resolve_symbols_single():
 def test_resolve_symbols_multiple():
     args = argparse.Namespace(symbol="AAPL", symbols="NVDA,TSLA,GOOG,AAPL")
     assert resolve_symbols(args) == ["NVDA", "TSLA", "GOOG", "AAPL"]
+
+
+def test_chunk_requests_splits_by_max_concurrency():
+    batch = [{"req_id": i} for i in range(5)]
+    chunks = chunk_requests(batch, max_concurrency=3)
+    assert [len(chunk) for chunk in chunks] == [3, 2]
+
+
+def test_chunk_requests_raises_on_invalid_concurrency():
+    with pytest.raises(ValueError, match="greater than zero"):
+        chunk_requests([{"req_id": 1}], max_concurrency=-1)

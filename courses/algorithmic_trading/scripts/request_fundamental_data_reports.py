@@ -54,6 +54,16 @@ def resolve_symbols(args: argparse.Namespace) -> List[str]:
     return [args.symbol]
 
 
+def chunk_requests(request_batch: List[Dict[str, object]], max_concurrency: int) -> List[List[Dict[str, object]]]:
+    """Split request list into bursts capped by max_concurrency."""
+    if max_concurrency <= 0:
+        raise ValueError("max_concurrency must be greater than zero.")
+    return [
+        request_batch[i : i + max_concurrency]
+        for i in range(0, len(request_batch), max_concurrency)
+    ]
+
+
 class _InMemoryFundamentalRepo:
     """Captures reports from callback while still persisting in Postgres."""
 
@@ -105,6 +115,18 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--timeout-seconds", type=int, default=20, help="Max wait time.")
     parser.add_argument(
+        "--max-concurrency",
+        type=int,
+        default=20,
+        help="Maximum number of in-flight requests submitted per burst.",
+    )
+    parser.add_argument(
+        "--request-delay-ms",
+        type=int,
+        default=0,
+        help="Delay in milliseconds between submission bursts.",
+    )
+    parser.add_argument(
         "--output-dir",
         type=str,
         default=str(PROJECT_ROOT / "data" / "fundamental_reports"),
@@ -152,7 +174,15 @@ def main() -> int:
             {"req_id": req_id, "contract": contract, "report_type": args.report_type}
         )
 
-    client.request_fundamental_data_batch(request_batch)
+    try:
+        request_chunks = chunk_requests(request_batch, args.max_concurrency)
+    except ValueError as e:
+        print(str(e))
+        return 6
+    for idx, chunk in enumerate(request_chunks):
+        client.request_fundamental_data_batch(chunk)
+        if idx < len(request_chunks) - 1 and args.request_delay_ms > 0:
+            time.sleep(args.request_delay_ms / 1000.0)
 
     deadline = time.time() + args.timeout_seconds
     while time.time() < deadline and len(memory_repo.reports_by_req_id) < len(req_ids):

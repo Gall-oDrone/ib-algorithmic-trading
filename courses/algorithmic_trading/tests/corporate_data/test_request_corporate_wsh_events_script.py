@@ -8,6 +8,7 @@ import pytest
 from scripts.request_corporate_wsh_events import (
     build_output_base,
     build_symbol_conid_pairs,
+    chunk_requests,
     save_payload_files,
 )
 
@@ -61,3 +62,14 @@ def test_build_symbol_conid_pairs_raises_on_mismatch():
     )
     with pytest.raises(ValueError, match="must have the same count"):
         build_symbol_conid_pairs(args)
+
+
+def test_chunk_requests_splits_by_max_concurrency():
+    batch = [{"req_id": i} for i in range(5)]
+    chunks = chunk_requests(batch, max_concurrency=2)
+    assert [len(chunk) for chunk in chunks] == [2, 2, 1]
+
+
+def test_chunk_requests_raises_on_invalid_concurrency():
+    with pytest.raises(ValueError, match="greater than zero"):
+        chunk_requests([{"req_id": 1}], max_concurrency=0)

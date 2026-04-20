@@ -107,6 +107,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--total-limit", type=int, default=10, help="Max number of events.")
     parser.add_argument("--timeout-seconds", type=int, default=20, help="Max wait time.")
     parser.add_argument(
+        "--max-concurrency",
+        type=int,
+        default=20,
+        help="Maximum number of in-flight requests submitted per burst.",
+    )
+    parser.add_argument(
+        "--request-delay-ms",
+        type=int,
+        default=0,
+        help="Delay in milliseconds between submission bursts.",
+    )
+    parser.add_argument(
         "--output-dir",
         type=str,
         default=str(PROJECT_ROOT / "data" / "corporate_wsh_events"),
@@ -133,6 +145,16 @@ def build_symbol_conid_pairs(args: argparse.Namespace) -> List[Tuple[str, int]]:
     if len(symbols) != len(con_ids):
         raise ValueError("When --symbols is used, --con-ids must have the same count.")
     return list(zip(symbols, [int(item) for item in con_ids]))
+
+
+def chunk_requests(request_batch: List[Dict[str, object]], max_concurrency: int) -> List[List[Dict[str, object]]]:
+    """Split request list into bursts capped by max_concurrency."""
+    if max_concurrency <= 0:
+        raise ValueError("max_concurrency must be greater than zero.")
+    return [
+        request_batch[i : i + max_concurrency]
+        for i in range(0, len(request_batch), max_concurrency)
+    ]
 
 
 def main() -> int:
@@ -184,7 +206,15 @@ def main() -> int:
         request_batch.append(
             {"req_id": req_id, "contract": contract, "filter_payload": filter_payload}
         )
-    client.request_wsh_event_data_batch(request_batch)
+    try:
+        request_chunks = chunk_requests(request_batch, args.max_concurrency)
+    except ValueError as e:
+        print(str(e))
+        return 6
+    for idx, chunk in enumerate(request_chunks):
+        client.request_wsh_event_data_batch(chunk)
+        if idx < len(request_chunks) - 1 and args.request_delay_ms > 0:
+            time.sleep(args.request_delay_ms / 1000.0)
 
     deadline = time.time() + args.timeout_seconds
     while (
