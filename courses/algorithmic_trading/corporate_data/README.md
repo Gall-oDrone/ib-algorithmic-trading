@@ -19,6 +19,16 @@ python3 courses/algorithmic_trading/scripts/request_corporate_wsh_events.py \
   --total-limit 10
 ```
 
+Multi-symbol in-flight example:
+
+```bash
+python3 courses/algorithmic_trading/scripts/request_corporate_wsh_events.py \
+  --symbols "NVDA,TSLA,GOOG,AAPL" \
+  --con-ids "4815747,76792991,208813720,265598" \
+  --con-id 265598 \
+  --filter "wshe_ed|wshe_div|wshe_split"
+```
+
 ### Recommended Filter Presets
 
 Use `--filter` to scope event categories:
@@ -38,6 +48,7 @@ Note: actual supported tags depend on IBKR/WSH backend and entitlement level.
 - `2`: Could not connect to TWS/IB Gateway.
 - `3`: Missing WSH entitlement (IB error `10276`).
 - `4`: No event received within timeout.
+- `5`: Invalid multi-symbol argument shape (`--symbols` and `--con-ids` count mismatch).
 
 ### Output Files
 

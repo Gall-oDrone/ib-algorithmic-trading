@@ -1,8 +1,15 @@
 """Tests for request_corporate_wsh_events CLI helper functions."""
 
+import argparse
 from pathlib import Path
 
-from scripts.request_corporate_wsh_events import build_output_base, save_payload_files
+import pytest
+
+from scripts.request_corporate_wsh_events import (
+    build_output_base,
+    build_symbol_conid_pairs,
+    save_payload_files,
+)
 
 
 def test_build_output_base(tmp_path: Path):
@@ -23,3 +30,34 @@ def test_save_payload_files_writes_raw_json_json_yaml(tmp_path: Path):
     assert written["json"].exists()
     assert written["yaml"].exists()
     assert written["raw_json"].read_text(encoding="utf-8") == '{"k":"v"}'
+
+
+def test_build_symbol_conid_pairs_single_request():
+    args = argparse.Namespace(symbol="AAPL", con_id=265598, symbols="", con_ids="")
+    assert build_symbol_conid_pairs(args) == [("AAPL", 265598)]
+
+
+def test_build_symbol_conid_pairs_multiple_requests():
+    args = argparse.Namespace(
+        symbol="AAPL",
+        con_id=265598,
+        symbols="NVDA,TSLA,GOOG,AAPL",
+        con_ids="4815747,76792991,208813720,265598",
+    )
+    assert build_symbol_conid_pairs(args) == [
+        ("NVDA", 4815747),
+        ("TSLA", 76792991),
+        ("GOOG", 208813720),
+        ("AAPL", 265598),
+    ]
+
+
+def test_build_symbol_conid_pairs_raises_on_mismatch():
+    args = argparse.Namespace(
+        symbol="AAPL",
+        con_id=265598,
+        symbols="NVDA,TSLA",
+        con_ids="4815747",
+    )
+    with pytest.raises(ValueError, match="must have the same count"):
+        build_symbol_conid_pairs(args)

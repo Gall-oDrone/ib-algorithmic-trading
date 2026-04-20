@@ -138,6 +138,20 @@ class IBFundamentalDataClient(IFundamentalDataClient):
         self._client.cancelFundamentalData(req_id)
         self._handler.unregister(req_id)
 
+    def request_fundamental_data_batch(
+        self,
+        requests: List[Dict[str, Any]],
+    ) -> None:
+        """Submit multiple fundamental requests as concurrent in-flight calls."""
+        self._ensure_connected()
+        for item in requests:
+            self.request_fundamental_data(
+                req_id=item["req_id"],
+                contract=item["contract"],
+                report_type=item.get("report_type", "ReportSnapshot"),
+                fundamental_data_options=item.get("fundamental_data_options"),
+            )
+
 
 def next_fundamental_req_id() -> int:
     """Return the next unique request ID for fundamental data requests."""

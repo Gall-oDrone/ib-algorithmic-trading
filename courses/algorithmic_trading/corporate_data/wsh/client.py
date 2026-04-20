@@ -1,7 +1,7 @@
 """IB client facade and callback handler for reqWshEventData."""
 
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from ibapi.common import WshEventData
 from ibapi.contract import Contract
@@ -152,6 +152,16 @@ class IBCorporateDataClient(ICorporateDataClient):
     def cancel_wsh_event_data(self, req_id: int) -> None:
         self._client.cancelWshEventData(req_id)
         self._handler.unregister(req_id)
+
+    def request_wsh_event_data_batch(self, requests: List[Dict[str, Any]]) -> None:
+        """Submit multiple WSH requests as concurrent in-flight calls."""
+        self._ensure_connected()
+        for item in requests:
+            self.request_wsh_event_data(
+                req_id=item["req_id"],
+                contract=item["contract"],
+                filter_payload=item["filter_payload"],
+            )
 
 
 def next_corporate_req_id() -> int:

@@ -81,6 +81,32 @@ def test_cancel_wsh_event_data_calls_ibapi(mock_ib_client, in_memory_corporate_r
     mock_ib_client.cancelWshEventData.assert_called_once_with(900004)
 
 
+def test_request_wsh_event_data_batch_submits_multiple_requests(
+    mock_ib_client, in_memory_corporate_repo
+):
+    handler = CorporateDataCallbackHandler(in_memory_corporate_repo)
+    client = IBCorporateDataClient(mock_ib_client, handler)
+
+    c1 = Contract()
+    c1.symbol = "AAPL"
+    c1.secType = "STK"
+    c1.exchange = "SMART"
+
+    c2 = Contract()
+    c2.symbol = "TSLA"
+    c2.secType = "STK"
+    c2.exchange = "SMART"
+
+    client.request_wsh_event_data_batch(
+        [
+            {"req_id": 900010, "contract": c1, "filter_payload": {"conId": 265598}},
+            {"req_id": 900011, "contract": c2, "filter_payload": {"conId": 76792991}},
+        ]
+    )
+
+    assert mock_ib_client.reqWshEventData.call_count == 2
+
+
 def test_on_ib_error_untracks_request_for_missing_subscription(in_memory_corporate_repo):
     handler = CorporateDataCallbackHandler(in_memory_corporate_repo)
     handler.register_request(900005, "AAPL", "STK", "SMART", {"conId": 265598})

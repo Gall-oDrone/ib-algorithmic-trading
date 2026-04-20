@@ -31,3 +31,11 @@ class IFundamentalDataClient(ABC):
     def cancel_fundamental_data(self, req_id: int) -> None:
         """Cancel reqFundamentalData request for req_id."""
         pass
+
+    @abstractmethod
+    def request_fundamental_data_batch(
+        self,
+        requests: list,
+    ) -> None:
+        """Submit multiple reqFundamentalData requests without waiting in between."""
+        pass

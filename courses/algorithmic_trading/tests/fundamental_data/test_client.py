@@ -80,6 +80,32 @@ def test_cancel_fundamental_data_calls_ibapi(mock_ib_client, in_memory_fundament
     mock_ib_client.cancelFundamentalData.assert_called_once_with(800004)
 
 
+def test_request_fundamental_data_batch_submits_multiple_requests(
+    mock_ib_client, in_memory_fundamental_repo
+):
+    handler = FundamentalDataCallbackHandler(in_memory_fundamental_repo)
+    client = IBFundamentalDataClient(mock_ib_client, handler)
+
+    c1 = Contract()
+    c1.symbol = "AAPL"
+    c1.secType = "STK"
+    c1.exchange = "SMART"
+
+    c2 = Contract()
+    c2.symbol = "TSLA"
+    c2.secType = "STK"
+    c2.exchange = "SMART"
+
+    client.request_fundamental_data_batch(
+        [
+            {"req_id": 800010, "contract": c1, "report_type": "ReportSnapshot"},
+            {"req_id": 800011, "contract": c2, "report_type": "ReportSnapshot"},
+        ]
+    )
+
+    assert mock_ib_client.reqFundamentalData.call_count == 2
+
+
 def test_next_fundamental_req_id_returns_incrementing_ids():
     if hasattr(next_fundamental_req_id, "_counter"):
         del next_fundamental_req_id._counter

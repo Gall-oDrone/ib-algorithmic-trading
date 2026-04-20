@@ -31,3 +31,11 @@ class ICorporateDataClient(ABC):
     def cancel_wsh_event_data(self, req_id: int) -> None:
         """Cancel reqWshEventData request for req_id."""
         pass
+
+    @abstractmethod
+    def request_wsh_event_data_batch(
+        self,
+        requests: list,
+    ) -> None:
+        """Submit multiple reqWshEventData requests without waiting in between."""
+        pass
