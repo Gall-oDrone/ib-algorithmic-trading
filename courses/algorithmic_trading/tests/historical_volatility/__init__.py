@@ -1,0 +1,1 @@
+"""Historical volatility tests package."""
